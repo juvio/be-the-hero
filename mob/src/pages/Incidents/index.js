@@ -11,21 +11,35 @@ export default function Incidents(){
  
     const navigation = useNavigation();
     const [incidents, setIncidents] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(false);
 
-    function navigateToDetail(){
-        navigation.navigate('Detail');
+    function navigateToDetail(incident){
+        navigation.navigate('Detail', {incident});
     }
 
     async function loadIncidents(){
-        try {
-            const response = await api.get('incidents');
-            
-            setIncidents(response.data);
-            console.log(response.data);
-        } catch (err) {
-            console.log(err)
-            setIncidents([]);
-          }
+      
+        if (loading){
+            return; 
+        }
+
+        if (total > 0 && incidents.length === total){
+            return;
+        }
+
+        setLoading(true);
+
+        const response = await api.get('incidents', {
+            params: {page}
+        });
+        
+        setIncidents([...incidents, ...response.data]);  //anexando vetores
+        //console.log(response.data);
+        setTotal(response.headers['x-total-count']);
+        setPage(page+1);
+        setLoading(false);
     }
 
     useEffect(() => {
@@ -41,7 +55,7 @@ export default function Incidents(){
                 <Image source={logo}/>
 
                 <Text style={styles.headerText}>
-                    Total de <Text style={styles.headerTextBold}>0 casos</Text>.
+                    Total de <Text style={styles.headerTextBold}>{total} casos</Text>.
                 </Text>
             
             </View>
@@ -54,6 +68,8 @@ export default function Incidents(){
                 style={styles.incidentList}
                 keyExtractor={incident => String(incident.id)}
                 showsVerticalScrollIndicator={false}
+                onEndReached={loadIncidents} //funcao que dispara quando chega no fim da pagina
+                onEndReachedThreshold={0.2} //quantos porcento do final da lista o usuario precisa estar pra carregar novos itens -- 0.2: 20%
                 renderItem={( {item: incident} ) => (
                     <View style={styles.incident}>
 
@@ -64,9 +80,12 @@ export default function Incidents(){
                         <Text style={styles.incidentValue}>{incident.title}</Text>
 
                         <Text style={styles.incidentProperty}>VALOR</Text>
-                        <Text style={styles.incidentValue}>{incident.value}</Text>
+                        <Text style={styles.incidentValue}>{
+                            Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'})
+                            .format(incident.value)}
+                        </Text>
 
-                        <TouchableOpacity style={styles.detailButton} onPress={navigateToDetail}>
+                        <TouchableOpacity style={styles.detailButton} onPress={() => navigateToDetail()}>
                             <Text style={styles.detailButtonText}>Ver mais detalhes</Text>
                             <Feather name="arrow-right" size={16} color="#E02041"/>
                         </TouchableOpacity>
